@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Admin | Lizaola</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        admin: {
+                            bg: '#0f172a',      // Azul noche oscuro
+                            card: '#1e293b',    // Gris azulado
+                            primary: '#06b6d4', // Cyan brillante
+                            accent: '#f59e0b',  // Ámbar para alertas
+                            text: '#e2e8f0'     // Gris claro
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .input-dark {
+            background: #334155;
+            border: 1px solid #475569;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+        }
+
+        .input-dark:focus {
+            outline: none;
+            border-color: #06b6d4;
+            ring: 2px solid rgba(6, 182, 212, 0.2);
+        }
+
+        .btn-cyan {
+            background: #06b6d4;
+            color: #0f172a;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .btn-cyan:hover {
+            background: #22d3ee;
+            transform: translateY(-2px);
+        }
+
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
+        }
+
+        @keyframes shake {
+
+            10%,
+            90% {
+                transform: translate3d(-1px, 0, 0);
+            }
+
+            20%,
+            80% {
+                transform: translate3d(2px, 0, 0);
+            }
+
+            30%,
+            50%,
+            70% {
+                transform: translate3d(-4px, 0, 0);
+            }
+
+            40%,
+            60% {
+                transform: translate3d(4px, 0, 0);
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen">
+
+    <!-- LOGIN -->
+    <div id="login-screen"
+        class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-cyan-950">
+        <div class="glass-panel p-8 rounded-2xl w-full max-w-md shadow-2xl">
+            <div class="text-center mb-8">
+                <div
+                    class="w-16 h-16 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-900 font-bold text-2xl shadow-lg shadow-cyan-500/20">
+                    GL</div>
+                <h1 class="text-2xl font-bold text-white">Panel de Control</h1>
+                <p class="text-slate-400 text-sm mt-1">Dr. Guillermo Lizaola Meza</p>
+            </div>
+
+            <form id="login-form" onsubmit="return validarLogin(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Usuario</label>
+                        <input type="text" id="username" value="admin" class="w-full input-dark" placeholder="admin">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Contraseña</label>
+                        <input type="password" id="password" class="w-full input-dark" placeholder="••••••" autofocus>
+                    </div>
+                </div>
+
+                <div id="error-msg"
+                    class="hidden mt-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-300 text-sm text-center">
+                    Credenciales incorrectas
+                </div>
+
+                <button type="submit" class="w-full btn-cyan mt-6 py-3 text-lg shadow-lg shadow-cyan-500/25">Acceder al
+                    Sistema</button>
+
+                <a href="index.html"
+                    class="block text-center text-slate-400 hover:text-cyan-400 mt-4 text-sm transition">← Volver al
+                    sitio público</a>
+            </form>
+
+            <div class="mt-6 pt-6 border-t border-slate-700 text-center">
+                <p class="text-xs text-slate-500">Acceso exclusivo para personal autorizado</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="hidden min-h-screen">
+        <!-- Sidebar -->
+        <aside class="fixed w-64 min-h-screen bg-slate-900 border-r border-slate-700 z-50">
+            <div class="p-6 border-b border-slate-700 bg-slate-800/50">
+                <h2 class="text-xl font-bold text-white flex items-center">
+                    <span class="text-cyan-400 mr-2">◆</span> Admin Panel
+                </h2>
+                <p class="text-xs text-cyan-400 mt-1">Modo Administrador</p>
+            </div>
+
+            <nav class="p-4 space-y-1">
+                <button onclick="showTab('citas')" id="nav-citas"
+                    class="w-full flex items-center px-4 py-3 rounded-lg text-left transition bg-slate-800 text-cyan-400 border-l-4 border-cyan-400">
+                    <span class="mr-3">📋</span> Citas Agendadas
+                </button>
+                <button onclick="showTab('servicios')" id="nav-servicios"
+                    class="w-full flex items-center px-4 py-3 rounded-lg text-left transition text-slate-400 hover:bg-slate-800 hover:text-white">
+                    <span class="mr-3">🦴</span> Servicios
+                </button>
+                <button onclick="showTab('config')" id="nav-config"
+                    class="w-full flex items-center px-4 py-3 rounded-lg text-left transition text-slate-400 hover:bg-slate-800 hover:text-white">
+                    <span class="mr-3">⚙️</span> Configuración
+                </button>
+            </nav>
+
+            <div class="absolute bottom-0 w-64 p-4 border-t border-slate-700 bg-slate-900">
+                <button onclick="logout()"
+                    class="w-full flex items-center justify-center px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/50 rounded-lg hover:bg-red-500/30 transition text-sm font-semibold">
+                    <span class="mr-2">🚪</span> Cerrar Sesión
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main -->
+        <main class="ml-64 p-8 min-h-screen bg-slate-950">
+            <div class="max-w-6xl mx-auto">
+                <!-- Header -->
+                <div class="flex justify-between items-center mb-8 pb-4 border-b border-slate-800">
+                    <div>
+                        <h1 id="page-title" class="text-2xl font-bold text-white">Gestión de Citas</h1>
+                        <p class="text-slate-400 text-sm">Dr. Guillermo Lizaola Meza - Ameca, Jalisco</p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <a href="index.html" target="_blank"
+                            class="text-cyan-400 hover:text-cyan-300 text-sm flex items-center">
+                            Ver sitio web <span class="ml-1">↗</span>
+                        </a>
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    </div>
+                </div>
+
+                <!-- TAB CITAS -->
+                <div id="tab-citas" class="tab-content">
+                    <div class="glass-panel rounded-xl overflow-hidden mb-6">
+                        <div class="p-4 border-b border-slate-700 flex flex-wrap gap-3">
+                            <input type="date" id="filtro-fecha" onchange="loadCitas()" class="input-dark text-sm">
+                            <select id="filtro-estado" onchange="loadCitas()" class="input-dark text-sm">
+                                <option value="todos">Todos los estados</option>
+                                <option value="pendiente" selected>Pendientes</option>
+                                <option value="confirmada">Confirmadas</option>
+                                <option value="cancelada">Canceladas</option>
+                            </select>
+                            <button onclick="loadCitas()" class="btn-cyan text-sm">Actualizar</button>
+                        </div>
+
+                        <div class="overflow-x-auto" id="tabla-container">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-slate-800 text-slate-400 uppercase text-xs">
+                                    <tr>
+                                        <th class="px-6 py-4">Paciente</th>
+                                        <th class="px-6 py-4">Contacto</th>
+                                        <th class="px-6 py-4">Cita</th>
+                                        <th class="px-6 py-4">Motivo</th>
+                                        <th class="px-6 py-4">Estado</th>
+                                        <th class="px-6 py-4">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lista-citas" class="divide-y divide-slate-700">
+                                    <tr>
+                                        <td colspan="6" class="px-6 py-8 text-center text-slate-500">Cargando...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB SERVICIOS -->
+                <div id="tab-servicios" class="tab-content hidden">
+                    <div class="glass-panel p-6 rounded-xl mb-6">
+                        <h3 class="text-lg font-bold text-white mb-4">Agregar Nuevo Servicio</h3>
+                        <form id="form-servicio" onsubmit="return guardarServicio(event)"
+                            class="grid md:grid-cols-2 gap-4">
+                            <input type="text" id="srv-titulo" placeholder="Nombre del servicio" required
+                                class="input-dark">
+                            <input type="text" id="srv-precio" placeholder="Precio" class="input-dark">
+                            <input type="text" id="srv-duracion" placeholder="Duración (ej: 45 min)" class="input-dark">
+                            <input type="file" id="srv-imagen" accept="image/*"
+                                class="input-dark text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-cyan-500 file:text-slate-900 hover:file:bg-cyan-400">
+                            <textarea id="srv-desc" placeholder="Descripción..." required rows="3"
+                                class="input-dark md:col-span-2"></textarea>
+                            <div class="md:col-span-2 flex gap-3">
+                                <button type="submit" class="btn-cyan">Guardar Servicio</button>
+                                <button type="button" onclick="document.getElementById('form-servicio').reset()"
+                                    class="px-4 py-2 border border-slate-600 rounded-lg hover:bg-slate-800 transition text-slate-300">Cancelar</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="grid-servicios" class="grid md:grid-cols-3 gap-6">
+                        <!-- Dinámico -->
+                    </div>
+                </div>
+
+                <!-- TAB CONFIG -->
+                <div id="tab-config" class="tab-content hidden">
+                    <div class="glass-panel p-8 rounded-xl max-w-2xl">
+                        <h3 class="text-lg font-bold text-white mb-6">Información del Consultorio</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm text-slate-400 mb-1">Nombre del Doctor</label>
+                                <input type="text" value="Guillermo Lizaola Meza"
+                                    class="input-dark w-full bg-slate-800/50" disabled>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-slate-400 mb-1">Teléfono</label>
+                                <input type="text" value="386 109 2463" class="input-dark w-full" id="config-tel">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-slate-400 mb-1">Dirección</label>
+                                <textarea class="input-dark w-full" rows="2"
+                                    id="config-dir">Calle República 152-int 58, 46615 Ameca, Jalisco</textarea>
+                            </div>
+                            <button onclick="guardarConfig()" class="btn-cyan">Guardar Cambios</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // CREDENCIALES (Cambia aquí tu acceso)
+        const USER_ADMIN = "admin";
+        const PASS_ADMIN = "123456"; // Cámbialo por una más segura
+
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "tu-proyecto.firebaseapp.com",
+            projectId: "tu-proyecto",
+            storageBucket: "tu-proyecto.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abc123"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+
+        // Check sesión
+        if (localStorage.getItem('admin_session') === 'true') {
+            mostrarDashboard();
+        }
+
+        function validarLogin(e) {
+            e.preventDefault();
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            const error = document.getElementById('error-msg');
+            const form = document.getElementById('login-form');
+
+            if (user === USER_ADMIN && pass === PASS_ADMIN) {
+                localStorage.setItem('admin_session', 'true');
+                error.classList.add('hidden');
+                mostrarDashboard();
+            } else {
+                error.classList.remove('hidden');
+                form.classList.add('shake');
+                setTimeout(() => form.classList.remove('shake'), 500);
+                document.getElementById('password').value = '';
+            }
+            return false;
+        }
+
+        function mostrarDashboard() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            loadCitas();
+        }
+
+        function logout() {
+            localStorage.removeItem('admin_session');
+            location.reload();
+        }
+
+        function showTab(tab) {
+            // Ocultar todos
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('[id^="nav-"]').forEach(el => {
+                el.classList.remove('bg-slate-800', 'text-cyan-400', 'border-l-4', 'border-cyan-400');
+                el.classList.add('text-slate-400');
+            });
+
+            // Mostrar activo
+            document.getElementById('tab-' + tab).classList.remove('hidden');
+            const nav = document.getElementById('nav-' + tab);
+            nav.classList.remove('text-slate-400');
+            nav.classList.add('bg-slate-800', 'text-cyan-400', 'border-l-4', 'border-cyan-400');
+
+            const titles = { 'citas': 'Gestión de Citas', 'servicios': 'Servicios Ofrecidos', 'config': 'Configuración' };
+            document.getElementById('page-title').textContent = titles[tab];
+
+            if (tab === 'servicios') loadServicios();
+        }
+
+        async function loadCitas() {
+            const fecha = document.getElementById('filtro-fecha').value;
+            const estado = document.getElementById('filtro-estado').value;
+
+            let query = db.collection('citas').orderBy('createdAt', 'desc');
+            if (fecha) query = query.where('fecha', '==', fecha);
+            if (estado !== 'todos') query = query.where('estado', '==', estado);
+
+            const snap = await query.get();
+            const tbody = document.getElementById('lista-citas');
+
+            if (snap.empty) {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-slate-500">No hay citas registradas</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            snap.forEach(doc => {
+                const c = doc.data();
+                const fechaCita = c.fecha ? c.fecha : 'Sin fecha';
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/50 transition">
+                        <td class="px-6 py-4 font-medium text-white">${c.nombre}</td>
+                        <td class="px-6 py-4 text-slate-300">
+                            <div>${c.email}</div>
+                            <div class="text-xs text-slate-500">${c.telefono}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="text-cyan-400">${fechaCita}</span>
+                            <span class="text-xs text-slate-500 block">${c.hora} hrs</span>
+                        </td>
+                        <td class="px-6 py-4 text-slate-300 text-sm">${c.tipo || 'General'}</td>
+                        <td class="px-6 py-4">
+                            <span class="px-2 py-1 rounded text-xs font-bold ${getEstadoColor(c.estado)}">${c.estado.toUpperCase()}</span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <select onchange="cambiarEstado('${doc.id}', this.value)" class="input-dark text-xs py-1">
+                                <option value="pendiente" ${c.estado === 'pendiente' ? 'selected' : ''}>Pendiente</option>
+                                <option value="confirmada" ${c.estado === 'confirmada' ? 'selected' : ''}>Confirmar</option>
+                                <option value="cancelada" ${c.estado === 'cancelada' ? 'selected' : ''}>Cancelar</option>
+                            </select>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function getEstadoColor(estado) {
+            const colores = {
+                'pendiente': 'bg-yellow-500/20 text-yellow-400',
+                'confirmada': 'bg-green-500/20 text-green-400',
+                'cancelada': 'bg-red-500/20 text-red-400'
+            };
+            return colores[estado] || 'bg-slate-500/20 text-slate-400';
+        }
+
+        async function cambiarEstado(id, nuevo) {
+            await db.collection('citas').doc(id).update({ estado: nuevo });
+            loadCitas();
+        }
+
+        async function guardarServicio(e) {
+            e.preventDefault();
+            const file = document.getElementById('srv-imagen').files[0];
+            let url = '';
+
+            if (file) {
+                const ref = storage.ref(`servicios/${Date.now()}_${file.name}`);
+                await ref.put(file);
+                url = await ref.getDownloadURL();
+            }
+
+            await db.collection('servicios').add({
+                titulo: document.getElementById('srv-titulo').value,
+                descripcion: document.getElementById('srv-desc').value,
+                precio: document.getElementById('srv-precio').value,
+                duracion: document.getElementById('srv-duracion').value,
+                imagenURL: url,
+                activo: true,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            document.getElementById('form-servicio').reset();
+            loadServicios();
+            alert('Servicio guardado');
+        }
+
+        async function loadServicios() {
+            const snap = await db.collection('servicios').get();
+            const grid = document.getElementById('grid-servicios');
+            grid.innerHTML = '';
+
+            snap.forEach(doc => {
+                const s = doc.data();
+                grid.innerHTML += `
+                    <div class="glass-panel rounded-xl overflow-hidden group">
+                        <div class="h-40 bg-slate-800 relative">
+                            ${s.imagenURL ? `<img src="${s.imagenURL}" class="w-full h-full object-cover">` : '<div class="flex items-center justify-center h-full text-slate-600">Sin imagen</div>'}
+                            <button onclick="deleteServ('${doc.id}')" class="absolute top-2 right-2 bg-red-500/80 text-white w-8 h-8 rounded-full opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-sm hover:bg-red-600">×</button>
+                        </div>
+                        <div class="p-4">
+                            <h4 class="font-bold text-white mb-1">${s.titulo}</h4>
+                            <p class="text-cyan-400 text-sm font-semibold">${s.precio || ''}</p>
+                            <p class="text-slate-400 text-xs mt-2 line-clamp-2">${s.descripcion}</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        async function deleteServ(id) {
+            if (confirm('¿Eliminar este servicio?')) {
+                await db.collection('servicios').doc(id).delete();
+                loadServicios();
+            }
+        }
+
+        function guardarConfig() {
+            alert('Configuración guardada localmente');
+        }
+    </script>
+</body>
+
+</html>
